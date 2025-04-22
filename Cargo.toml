@@ -5,7 +5,7 @@ edition = "2021"
 description = "A Rust-based schema model for database migrations with RLS support"
 authors = ["Kohori Team"]
 license = "MIT"
-repository = "https://github.com/yourusername/kohori"
+repository = "https://github.com/kohori-team/kohori"
 readme = "README.md"
 
 [dependencies]
