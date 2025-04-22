@@ -2,10 +2,10 @@
 name = "kohori"
 version = "0.1.0"
 edition = "2021"
-description = "A Rust-based schema model for database migrations with RLS support"
-authors = ["Kohori Team"]
+description = "こほり: A Rust-based schema model for database migrations with RLS support"
+authors = ["Gftd", "Jun Kawasaki"]
 license = "MIT"
-repository = "https://github.com/kohori-team/kohori"
+repository = "https://github.com/jun784/kohori"
 readme = "README.md"
 
 [dependencies]
