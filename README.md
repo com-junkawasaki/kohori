@@ -47,6 +47,44 @@ kohori = "0.1.0"
 
 For more detailed documentation, see the [API documentation](https://docs.rs/kohori).
 
+## Roadmap
+
+### Current Status (v0.1.0)
+- ✅ Core schema modeling (tables, columns, constraints)
+- ✅ PostgreSQL dialect support
+- ✅ Row-Level Security (RLS) policy definitions
+- ✅ Basic migration generation
+- ✅ Migration file management
+
+### Short-term Goals (v0.2.0)
+- 🔲 Schema diffing for automated migration generation
+- 🔲 Migration history tracking
+- 🔲 Migration up/down operations
+- 🔲 Command-line interface (CLI) for migration management
+- 🔲 Documentation improvements and examples
+
+### Mid-term Goals (v0.3.0)
+- 🔲 Schema validation and integrity checks
+- 🔲 Additional PostgreSQL features (extensions, functions, triggers)
+- 🔲 Database connection management for applying migrations
+- 🔲 Comprehensive test suite with real database integration
+- 🔲 Support for additional constraints and column types
+
+### Long-term Goals (v1.0.0)
+- 🔲 MySQL dialect support
+- 🔲 SQLite dialect support
+- 🔲 SQL Server dialect support
+- 🔲 GraphQL schema generation
+- 🔲 TypeScript/JavaScript type definitions export
+- 🔲 Integration with ORM libraries
+- 🔲 Performance optimizations for large schemas
+
+### Community Goals
+- 🔲 Documentation website
+- 🔲 Contribution guidelines
+- 🔲 Example projects and templates
+- 🔲 Community extensions and plugins
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 

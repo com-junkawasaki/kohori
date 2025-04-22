@@ -297,14 +297,173 @@ impl MigrationManager {
         let mut operations = Vec::new();
         
         // Track existing tables in the "from" schema
-        let mut from_tables: HashMap<String, &crate::schema::Table> = HashMap::new();
+        let mut from_tables = HashMap::new();
+        for table in &from.tables {
+            from_tables.insert(table.name.clone(), table);
+        }
         
-        // TODO: Implement schema diffing logic
-        // This is a complex algorithm to detect:
-        // - New tables
-        // - Dropped tables
-        // - Changed tables (new/dropped/altered columns, constraints, etc.)
-        // - RLS changes
+        // Track existing tables in the "to" schema
+        let mut to_tables = HashMap::new();
+        for table in &to.tables {
+            to_tables.insert(table.name.clone(), table);
+        }
+        
+        // Find tables that were added
+        for table in &to.tables {
+            if !from_tables.contains_key(&table.name) {
+                // New table
+                operations.push(MigrationOperation::CreateTable {
+                    table: table.clone(),
+                });
+            }
+        }
+        
+        // Find tables that were removed
+        for table in &from.tables {
+            if !to_tables.contains_key(&table.name) {
+                // Dropped table
+                operations.push(MigrationOperation::DropTable {
+                    table: table.name.clone(),
+                    cascade: false,
+                });
+            }
+        }
+        
+        // Find tables that were changed
+        for (table_name, to_table) in &to_tables {
+            if let Some(from_table) = from_tables.get(table_name) {
+                let mut changes = Vec::new();
+                
+                // Check for columns that were added
+                let from_columns: HashMap<String, &crate::schema::Column> = from_table.columns.iter()
+                    .map(|c| (c.name.clone(), c))
+                    .collect();
+                    
+                for to_column in &to_table.columns {
+                    if !from_columns.contains_key(&to_column.name) {
+                        // New column
+                        changes.push(TableChange::AddColumn(to_column.clone()));
+                    } else {
+                        // Column exists, check for changes
+                        let from_column = from_columns[&to_column.name];
+                        
+                        // Check data type
+                        if from_column.data_type != to_column.data_type {
+                            changes.push(TableChange::AlterColumn {
+                                name: to_column.name.clone(),
+                                change: ColumnChange::SetDataType(to_column.data_type.clone()),
+                            });
+                        }
+                        
+                        // Check nullable
+                        if from_column.is_nullable && !to_column.is_nullable {
+                            changes.push(TableChange::AlterColumn {
+                                name: to_column.name.clone(),
+                                change: ColumnChange::SetNotNull,
+                            });
+                        } else if !from_column.is_nullable && to_column.is_nullable {
+                            changes.push(TableChange::AlterColumn {
+                                name: to_column.name.clone(),
+                                change: ColumnChange::DropNotNull,
+                            });
+                        }
+                        
+                        // Check default
+                        match (&from_column.default_value, &to_column.default_value) {
+                            (None, Some(value)) => {
+                                changes.push(TableChange::AlterColumn {
+                                    name: to_column.name.clone(),
+                                    change: ColumnChange::SetDefault(value.clone()),
+                                });
+                            },
+                            (Some(_), None) => {
+                                changes.push(TableChange::AlterColumn {
+                                    name: to_column.name.clone(),
+                                    change: ColumnChange::DropDefault,
+                                });
+                            },
+                            (Some(from_value), Some(to_value)) if from_value != to_value => {
+                                changes.push(TableChange::AlterColumn {
+                                    name: to_column.name.clone(),
+                                    change: ColumnChange::SetDefault(to_value.clone()),
+                                });
+                            },
+                            _ => {}
+                        }
+                        
+                        // More column changes could be checked here
+                    }
+                }
+                
+                // Check for columns that were dropped
+                let to_columns: HashMap<String, &crate::schema::Column> = to_table.columns.iter()
+                    .map(|c| (c.name.clone(), c))
+                    .collect();
+                    
+                for from_column in &from_table.columns {
+                    if !to_columns.contains_key(&from_column.name) {
+                        // Dropped column
+                        changes.push(TableChange::DropColumn {
+                            name: from_column.name.clone(),
+                            cascade: false,
+                        });
+                    }
+                }
+                
+                // Check for RLS policy changes
+                if !from_table.rls_enabled && to_table.rls_enabled {
+                    // RLS was enabled
+                    operations.push(MigrationOperation::EnableRLS {
+                        table: table_name.clone(),
+                        force: false,
+                    });
+                } else if from_table.rls_enabled && !to_table.rls_enabled {
+                    // RLS was disabled
+                    operations.push(MigrationOperation::DisableRLS {
+                        table: table_name.clone(),
+                    });
+                }
+                
+                // Find policies that were added
+                let from_policies: HashMap<String, &crate::rls::Policy> = from_table.rls_policies.iter()
+                    .map(|p| (p.name.clone(), p))
+                    .collect();
+                    
+                for to_policy in &to_table.rls_policies {
+                    if !from_policies.contains_key(&to_policy.name) {
+                        // New policy
+                        operations.push(MigrationOperation::CreateRLSPolicy {
+                            table: table_name.clone(),
+                            policy: to_policy.clone(),
+                        });
+                    }
+                    // Policy changes could be checked here
+                }
+                
+                // Find policies that were dropped
+                let to_policies: HashMap<String, &crate::rls::Policy> = to_table.rls_policies.iter()
+                    .map(|p| (p.name.clone(), p))
+                    .collect();
+                    
+                for from_policy in &from_table.rls_policies {
+                    if !to_policies.contains_key(&from_policy.name) {
+                        // Dropped policy
+                        operations.push(MigrationOperation::DropRLSPolicy {
+                            table: table_name.clone(),
+                            policy: from_policy.name.clone(),
+                        });
+                    }
+                }
+                
+                // If there are any changes to the table, add an AlterTable operation
+                if !changes.is_empty() {
+                    operations.push(MigrationOperation::AlterTable {
+                        table: table_name.clone(),
+                        changes,
+                    });
+                }
+            }
+        }
         
         operations
     }
